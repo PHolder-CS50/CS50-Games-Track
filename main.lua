@@ -38,6 +38,17 @@ require 'Paddle'
 -- but which will mechanically function very differently
 require 'Ball'
 
+-- The KeyboardPlayer class allows the player to use the specified keypresses
+-- to control the paddle
+require 'KeyboardPlayer'
+
+-- The AIPlayer class replaces a KeyboardPlayer by moving the paddle to follow
+-- the ball.  It can be configured to only move when the ball is moving in a
+-- certain direction (left or right) which only makes sense to limit the paddle
+-- tracking the ball after it has been hit but before it has been returned by
+-- opponent.
+require 'AIPlayer'
+
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 
@@ -95,9 +106,14 @@ function love.load()
     servingPlayer = 1
 
     -- initialize player paddles and ball
-    player1 = Paddle(10, 30, 5, 20)
-    player2 = Paddle(VIRTUAL_WIDTH - 15, VIRTUAL_HEIGHT - 30, 5, 20)
+    player1Paddle = Paddle(10, 30, 5, 20)
+    player2Paddle = Paddle(VIRTUAL_WIDTH - 15, VIRTUAL_HEIGHT - 30, 5, 20)
     ball = Ball(VIRTUAL_WIDTH / 2 - 2, VIRTUAL_HEIGHT / 2 - 2, 4, 4)
+
+    -- player1Input = KeyboardPlayer('w',  's',    PADDLE_SPEED)
+    -- player2Input = KeyboardPlayer('up', 'down', PADDLE_SPEED)
+    player1Input = AIPlayer(player1Paddle, ball, PADDLE_SPEED, false, true)
+    player2Input = AIPlayer(player2Paddle, ball, PADDLE_SPEED, true,  false)
 
     gameState = 'start'
 end
@@ -127,9 +143,9 @@ function love.update(dt)
     elseif gameState == 'play' then
         -- detect ball collision with paddles, reversing dx if true and
         -- slightly increasing it, then altering the dy based on the position of collision
-        if ball:collides(player1) then
+        if ball:collides(player1Paddle) then
             ball.dx = -ball.dx * 1.03
-            ball.x = player1.x + 5
+            ball.x = player1Paddle.x + 5
 
             -- keep velocity going in the same direction, but randomize it
             if ball.dy < 0 then
@@ -140,9 +156,9 @@ function love.update(dt)
 
             sounds['paddle_hit']:play()
         end
-        if ball:collides(player2) then
+        if ball:collides(player2Paddle) then
             ball.dx = -ball.dx * 1.03
-            ball.x = player2.x - 4
+            ball.x = player2Paddle.x - 4
 
             -- keep velocity going in the same direction, but randomize it
             if ball.dy < 0 then
@@ -203,22 +219,10 @@ function love.update(dt)
     end
 
     -- player 1 movement
-    if love.keyboard.isDown('w') then
-        player1.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('s') then
-        player1.dy = PADDLE_SPEED
-    else
-        player1.dy = 0
-    end
+    player1Paddle.dy = player1Input:getDeltaY()
 
     -- player 2 movement
-    if love.keyboard.isDown('up') then
-        player2.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('down') then
-        player2.dy = PADDLE_SPEED
-    else
-        player2.dy = 0
-    end
+    player2Paddle.dy = player2Input:getDeltaY()
 
     -- update our ball based on its DX and DY only if we're in play state;
     -- scale the velocity by dt so movement is framerate-independent
@@ -226,8 +230,8 @@ function love.update(dt)
         ball:update(dt)
     end
 
-    player1:update(dt)
-    player2:update(dt)
+    player1Paddle:update(dt)
+    player2Paddle:update(dt)
 end
 
 --[[
@@ -302,8 +306,8 @@ function love.draw()
         love.graphics.printf('Press Enter to restart!', 0, 30, VIRTUAL_WIDTH, 'center')
     end
 
-    player1:render()
-    player2:render()
+    player1Paddle:render()
+    player2Paddle:render()
     ball:render()
 
     displayFPS()
