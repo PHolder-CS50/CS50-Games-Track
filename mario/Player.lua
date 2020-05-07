@@ -8,7 +8,10 @@ local WALKING_SPEED = 140
 local JUMP_VELOCITY = 400
 
 function Player:init(map)
-    
+    self.gotFlag = false;
+    self.levelWon = false;
+    self.levelOver = false;
+
     self.x = 0
     self.y = 0
     self.width = 16
@@ -167,11 +170,43 @@ function Player:init(map)
                 self.y = (self.map:tileAt(self.x, self.y + self.height).y - 1) * self.map.tileHeight - self.height
             end
 
+            -- If the player reaches the flag, they win and the level is over
+            if self:checkFlagCollision() then
+                self.gotFlag = true;
+                self.levelWon = true;
+                self.levelOver = true;
+            end
+
             -- check for collisions moving left and right
             self:checkRightCollision()
             self:checkLeftCollision()
         end
     }
+end
+
+-- Has the player collided with the flag or flag pole?
+function Player:checkFlagCollision()
+    local tile = self.map:tileAt(self.x, self.y).id
+    if (tile == TILE_FLAG) or (tile == FLAGPOLE_TOP) or (tile == FLAGPOLE_MID) or
+       (tile == FLAGPOLE_BASE) then
+        return true
+    end
+    return false
+end
+
+-- Check if the level ended (player killed or player won)
+function Player:isLevelOver()
+    return self.levelOver
+end
+
+-- Check if the player won the level
+function Player:wasLevelWon()
+    return self.levelWon
+end
+
+-- Check if the player got the flag
+function Player:gotFlag()
+    return self.gotFlag
 end
 
 function Player:update(dt)
