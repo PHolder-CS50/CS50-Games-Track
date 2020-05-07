@@ -4,6 +4,7 @@
 ]]
 
 require 'Util'
+require 'WavingFlag'
 
 Map = Class{}
 
@@ -26,11 +27,24 @@ MUSHROOM_BOTTOM = 11
 JUMP_BLOCK = 5
 JUMP_BLOCK_HIT = 9
 
+-- flag pole
+FLAGPOLE_TOP  = 8
+FLAGPOLE_MID  = 12
+FLAGPOLE_BASE = 16
+
+-- flag (waving)
+TILE_FLAG = 13
+--FLAG_FRAME1 = 13
+--FLAG_FRAME2 = 14
+--FLAG_FRAME3 = 15
+
 -- a speed to multiply delta time to scroll map; smooth value
 local SCROLL_SPEED = 62
 
 -- constructor for our map object
 function Map:init()
+
+    self.pyramidWidth = 20
 
     self.spritesheet = love.graphics.newImage('graphics/spritesheet.png')
     self.sprites = generateQuads(self.spritesheet, 16, 16)
@@ -38,7 +52,7 @@ function Map:init()
 
     self.tileWidth = 16
     self.tileHeight = 16
-    self.mapWidth = 30
+    self.mapWidth = 30 + self.pyramidWidth
     self.mapHeight = 28
     self.tiles = {}
 
@@ -47,6 +61,9 @@ function Map:init()
 
     -- associate player with map
     self.player = Player(self)
+
+    -- set up waving flag
+    self.wavingFlag = WavingFlag(self.spritesheet)
 
     -- camera offsets
     self.camX = 0
@@ -67,7 +84,7 @@ function Map:init()
 
     -- begin generating the terrain using vertical scan lines
     local x = 1
-    while x < self.mapWidth do
+    while x < self.mapWidth - self.pyramidWidth do
         
         -- 2% chance to generate a cloud
         -- make sure we're 2 tiles from edge at least
@@ -134,6 +151,41 @@ function Map:init()
         end
     end
 
+    self.pyramidHeight = 10
+    self.pyramidStartX = x + 2
+    self.pyramidBaseY  = self.mapHeight / 2
+
+    self.flagpoleHeight = 10
+    self.flagpoleBaseX  = self.pyramidStartX + self.pyramidHeight + 4
+    self.flagpoleBaseY  = self.mapHeight / 2
+
+    self.flagX = self.flagpoleBaseX + 1
+    self.flagY = self.flagpoleBaseY - self.flagpoleHeight
+
+    -- Make sure the area with the pyramid has something to build on
+    while x < self.mapWidth do
+        -- creates column of tiles going to bottom of map
+        for y = self.mapHeight / 2, self.mapHeight do
+            self:setTile(x, y, TILE_BRICK)
+        end
+        x = x + 1
+    end
+
+    -- Place the pyramid
+    for x = 1, self.pyramidHeight do
+        for y = 1, x do
+          self:setTile(self.pyramidStartX + x, self.pyramidBaseY - y, TILE_BRICK)
+        end
+    end
+
+    -- Place the flag
+    self:setTile(self.flagpoleBaseX, self.flagpoleBaseY - 1, FLAGPOLE_BASE)
+    for y = 2, self.flagpoleHeight - 1 do
+        self:setTile(self.flagpoleBaseX, self.flagpoleBaseY - y, FLAGPOLE_MID)
+    end
+    self:setTile(self.flagpoleBaseX, self.flagpoleBaseY - self.flagpoleHeight, FLAGPOLE_TOP)
+    self:setTile(self.flagX, self.flagY, TILE_FLAG)
+
     -- start the background music
     self.music:setLooping(true)
     self.music:play()
@@ -160,7 +212,8 @@ end
 -- function to update camera offset with delta time
 function Map:update(dt)
     self.player:update(dt)
-    
+    self.wavingFlag:update(dt)
+
     -- keep camera's X coordinate following the player, preventing camera from
     -- scrolling past 0 to the left and the map's width
     self.camX = math.max(0, math.min(self.player.x - VIRTUAL_WIDTH / 2,
@@ -191,7 +244,10 @@ function Map:render()
     for y = 1, self.mapHeight do
         for x = 1, self.mapWidth do
             local tile = self:getTile(x, y)
-            if tile ~= TILE_EMPTY then
+            if tile == TILE_FLAG then
+                -- Render a waving flag at the correct location
+                self.wavingFlag:render((x - 1) * self.tileWidth, (y - 1) * self.tileHeight)
+            elseif tile ~= TILE_EMPTY then
                 love.graphics.draw(self.spritesheet, self.sprites[tile],
                     (x - 1) * self.tileWidth, (y - 1) * self.tileHeight)
             end
@@ -199,4 +255,9 @@ function Map:render()
     end
 
     self.player:render()
+end
+
+-- Has the level been won?  (Check with the player)
+function Map:wasLevelWon()
+    return self.player:wasLevelWon()
 end
