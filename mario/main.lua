@@ -102,10 +102,30 @@ function love.draw()
     -- clear screen using Mario background blue
     love.graphics.clear(108/255, 140/255, 255/255, 255/255)
 
+    love.graphics.push()
+
     -- renders our map object onto the screen
     love.graphics.translate(math.floor(-map.camX + 0.5), math.floor(-map.camY + 0.5))
     map:render()
 
+    love.graphics.pop()
+
+    -- Check if the player beat the level
+    if map:wasLevelWon() then
+        showLevelWon()
+    end
+
     -- end virtual resolution
     push:apply('end')
+end
+
+-- Draw a red box with the white text "You Won!"
+function showLevelWon()
+    love.graphics.setColor(200/255, 20/255, 20/255, 1)
+    love.graphics.rectangle('fill', 100, 40, VIRTUAL_WIDTH - 200, VIRTUAL_HEIGHT - 80)
+    wonFont = love.graphics.newFont('fonts/font.ttf', 64)
+    love.graphics.setFont(wonFont)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.printf('You',  0,  60, VIRTUAL_WIDTH, 'center')
+    love.graphics.printf('Won!', 0, 120, VIRTUAL_WIDTH, 'center')
 end
